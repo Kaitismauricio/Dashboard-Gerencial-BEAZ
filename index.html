@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Comercial · BeaZ</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+:root{
+  --bg:#0F1B2D;--surface:#16273D;--surface-raised:#1C304A;
+  --grid-line:#24384F;--accent:#FF6B35;--ok:#4FD1C5;
+  --warn:#F2C94C;--danger:#FF5C5C;--text:#E8EDF2;--text-muted:#8CA0B3;--radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
+header{background:var(--surface);border-bottom:1px solid var(--grid-line);padding:16px 28px;display:flex;align-items:center;gap:16px;}
+header .logo{color:var(--accent);font-size:22px;font-weight:800;letter-spacing:1px;}
+header .sub{color:var(--text-muted);font-size:12px;letter-spacing:2px;}
+.tab-bar{display:flex;gap:2px;padding:0 28px;background:var(--surface);border-bottom:1px solid var(--grid-line);}
+.tab-btn{padding:12px 20px;font-size:13px;font-weight:500;color:var(--text-muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:.2s;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-panel{display:none;padding:28px;}
+.tab-panel.active{display:block;}
+#upload-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;}
+.drop-area{border:2px dashed var(--grid-line);border-radius:16px;padding:60px 100px;text-align:center;cursor:pointer;transition:.2s;background:var(--surface);}
+.drop-area:hover,.drop-area.drag{border-color:var(--accent);background:var(--surface-raised);}
+.drop-icon{font-size:52px;margin-bottom:16px;}
+.drop-area h2{font-size:20px;margin-bottom:8px;}
+.drop-area p{color:var(--text-muted);font-size:13px;margin-top:6px;}
+.btn-upload{background:var(--accent);color:#fff;border:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:16px;}
+#file-input{display:none;}
+.file-info{display:flex;align-items:center;gap:12px;margin-left:auto;background:var(--surface-raised);border:1px solid var(--grid-line);border-radius:8px;padding:8px 16px;font-size:13px;color:var(--text-muted);}
+.file-info strong{color:var(--ok);}
+.btn-trocar{background:none;border:1px solid var(--grid-line);color:var(--text-muted);padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;}
+.btn-trocar:hover{border-color:var(--accent);color:var(--accent);}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px;}
+.kpi-card{background:var(--surface);border:1px solid var(--grid-line);border-radius:var(--radius);padding:18px 20px;}
+.kpi-label{font-size:10px;color:var(--text-muted);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;}
+.kpi-value{font-size:22px;font-weight:700;line-height:1.2;}
+.kpi-sub{font-size:11px;color:var(--text-muted);margin-top:5px;}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.chart-card{background:var(--surface);border:1px solid var(--grid-line);border-radius:var(--radius);padding:20px;}
+.chart-card.full{grid-column:1/-1;}
+.chart-title{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px;}
+.ranking-list{display:flex;flex-direction:column;gap:10px;}
+.rank-row{display:grid;grid-template-columns:150px 1fr 150px;align-items:center;gap:10px;}
+.rank-label{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rank-bar-track{background:var(--surface-raised);border-radius:4px;height:8px;overflow:hidden;}
+.rank-bar-fill{height:100%;background:var(--accent);border-radius:4px;}
+.rank-value{font-size:11px;color:var(--text-muted);text-align:right;}
+.table-controls{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.search-input{background:var(--surface);border:1px solid var(--grid-line);color:var(--text);padding:8px 14px;border-radius:8px;font-size:13px;width:260px;}
+.search-input::placeholder{color:var(--text-muted);}
+select.filter-sel{background:var(--surface);border:1px solid var(--grid-line);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;}
+.btn-csv{background:none;border:1px solid var(--ok);color:var(--ok);padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;}
+.btn-csv:hover{background:var(--ok);color:#000;}
+.table-wrap{overflow-x:auto;max-height:600px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:var(--surface-raised);padding:10px 12px;text-align:left;font-size:11px;letter-spacing:.8px;color:var(--text-muted);border-bottom:1px solid var(--grid-line);cursor:pointer;user-select:none;position:sticky;top:0;}
+th:hover{color:var(--text);}
+td{padding:8px 12px;border-bottom:1px solid var(--grid-line);}
+tr:hover td{background:var(--surface-raised);}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+.b-e{background:#0a3a2a;color:#4FD1C5;}
+.b-a{background:#3a0a0a;color:#FF5C5C;}
+.b-p{background:#1a2a0a;color:#90EE90;}
+.b-t{background:#3a2a0a;color:#F2C94C;}
+.b-c,.b-o{background:var(--surface-raised);color:var(--text-muted);}
+#table-count{margin-top:10px;font-size:12px;color:var(--text-muted);}
+footer{border-top:1px solid var(--grid-line);padding:16px 28px;text-align:center;color:var(--text-muted);font-size:12px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">BeaZ</div>
+    <div class="sub">PAINEL COMERCIAL</div>
+  </div>
+  <div id="file-info-bar" style="display:none;" class="file-info">
+    📊 <strong id="lbl-file"></strong>
+    <span>· <span id="lbl-rows"></span> registros</span>
+    <button class="btn-trocar" onclick="document.getElementById('file-input').click()">↺ Trocar arquivo</button>
+  </div>
+</header>
+
+<div class="tab-bar" id="tab-bar" style="display:none;">
+  <button class="tab-btn active" data-tab="tab-dash">Dashboard</button>
+  <button class="tab-btn" data-tab="tab-dados">Base de Dados</button>
+</div>
+
+<div id="upload-zone">
+  <div class="drop-area" id="drop-area">
+    <div class="drop-icon">📂</div>
+    <h2>Arraste o Excel aqui</h2>
+    <p>ou clique no botão abaixo para selecionar</p>
+    <p style="font-size:11px;margin-top:4px;color:#4A6B8A;">Compatível com Lista_Pedidos_XXXX.xlsx · aba "Projetos"</p>
+    <button class="btn-upload" onclick="document.getElementById('file-input').click()">Selecionar arquivo</button>
+  </div>
+  <input type="file" id="file-input" accept=".xlsx,.xls">
+</div>
+
+<div class="tab-panel active" id="tab-dash" style="display:none;">
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="charts-grid">
+    <div class="chart-card full">
+      <div class="chart-title">Faturamento Mensal por Ano</div>
+      <canvas id="ch-mensal" height="80"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Ranking de Clientes por Faturamento</div>
+      <div class="ranking-list" id="ranking"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Ticket Médio por Unidade — Top Clientes</div>
+      <canvas id="ch-ticket" height="280"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Status dos Projetos</div>
+      <canvas id="ch-status" height="280"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Faturamento por Empresa</div>
+      <canvas id="ch-empresa" height="280"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-dados" style="display:none;">
+  <div class="table-controls">
+    <input type="text" class="search-input" id="bd-search" placeholder="Buscar cliente ou nº pedido...">
+    <select class="filter-sel" id="bd-status"><option value="">Todos os status</option></select>
+    <select class="filter-sel" id="bd-ano"><option value="">Todos os anos</option></select>
+    <button class="btn-csv" onclick="exportCSV()">⬇ Exportar CSV</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th onclick="srt('cliente')">Cliente ↕</th>
+        <th onclick="srt('num_pedido')">Nº Pedido ↕</th>
+        <th onclick="srt('data_pedido')">Data Pedido ↕</th>
+        <th onclick="srt('status')">Status ↕</th>
+        <th onclick="srt('valor')">Valor ↕</th>
+        <th onclick="srt('qtd_entregue')">Qtd Entregue ↕</th>
+        <th onclick="srt('nf')">NF ↕</th>
+        <th onclick="srt('empresa')">Empresa ↕</th>
+      </tr></thead>
+      <tbody id="bd-tbody"></tbody>
+    </table>
+  </div>
+  <div id="table-count"></div>
+</div>
+
+<footer>KAITIS Consultoria × BeaZ · Painel Comercial</footer>
+
+<script>
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+let allData = [], charts = {}, sortF = 'data_pedido', sortD = 'desc';
+
+// ── DROP & FILE ─────────────────────────────────
+const drop = document.getElementById('drop-area');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag'); if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
+document.getElementById('file-input').addEventListener('change', e => { if(e.target.files[0]) readFile(e.target.files[0]); e.target.value=''; });
+
+function readFile(file){
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, { type:'array', cellDates:true, cellNF:false, raw:false });
+      const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes('projeto')) || wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      // raw:true para pegar valores numéricos reais
+      const raw = XLSX.utils.sheet_to_json(ws, { defval:'', raw:true });
+      processData(raw, file.name);
+    } catch(e){ alert('Erro ao ler arquivo: ' + e.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function processData(raw, fname){
+  // Normalizar chaves: remover espaços extras (ex: " Valor " → "Valor")
+  const normalized = raw.map(r => {
+    const n = {};
+    Object.keys(r).forEach(k => { n[k.trim()] = r[k]; });
+    return n;
+  });
+
+  allData = normalized.map(r => {
+    const cliente = strVal(r['Cliente']).toUpperCase().trim();
+    if(!cliente || cliente === 'CLIENTE') return null;
+
+    // Valor: chave pode ter espaços — já normalizado acima
+    let valor = 0;
+    const vRaw = r['Valor'];
+    if(typeof vRaw === 'number') valor = vRaw;
+    else if(typeof vRaw === 'string' && vRaw.trim()) {
+      valor = parseFloat(vRaw.replace(/\./g,'').replace(',','.')) || 0;
+    }
+
+    // Qtd entregue
+    let qtd = 0;
+    const qRaw = r['Qtd Já entregue'];
+    if(typeof qRaw === 'number') qtd = qRaw;
+    else if(typeof qRaw === 'string' && qRaw.trim()) qtd = parseFloat(qRaw) || 0;
+
+    // Data pedido
+    let data = null;
+    const dRaw = r['Data pedido'];
+    if(dRaw instanceof Date && !isNaN(dRaw)) {
+      data = dRaw;
+    } else if(typeof dRaw === 'number' && dRaw > 1000) {
+      data = new Date(Math.round((dRaw - 25569) * 86400 * 1000));
+    }
+    if(data && (data.getFullYear() < 2010 || data.getFullYear() > 2030)) data = null;
+
+    const status = strVal(r['Status']).toUpperCase().trim();
+    const empresa = normEmpresa(strVal(r['Pedido em qual empresa?']));
+
+    return { cliente, num_pedido: strVal(r['Nº Pedido']), data, status, valor, qtd, nf: strVal(r['NF']), empresa };
+  }).filter(Boolean);
+
+  // Preenche filtros
+  const anos = [...new Set(allData.map(r => r.data?.getFullYear()).filter(Boolean))].sort();
+  const statuses = [...new Set(allData.map(r => r.status).filter(Boolean))].sort();
+  const selA = document.getElementById('bd-ano');
+  const selS = document.getElementById('bd-status');
+  selA.innerHTML = '<option value="">Todos os anos</option>' + anos.map(a => `<option>${a}</option>`).join('');
+  selS.innerHTML = '<option value="">Todos os status</option>' + statuses.map(s => `<option>${s}</option>`).join('');
+
+  document.getElementById('upload-zone').style.display = 'none';
+  document.getElementById('tab-bar').style.display = 'flex';
+  document.getElementById('tab-dash').style.display = 'block';
+  document.getElementById('file-info-bar').style.display = 'flex';
+  document.getElementById('lbl-file').textContent = fname;
+  document.getElementById('lbl-rows').textContent = allData.length.toLocaleString('pt-BR');
+
+  renderAll();
+}
+
+function strVal(v){ return v == null ? '' : String(v).trim(); }
+function normEmpresa(v){
+  const s = v.toUpperCase();
+  if(s.includes('WE')) return 'We Americana';
+  return 'BeaZ';
+}
+function fmtBRL(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(d){ return d ? d.toLocaleDateString('pt-BR') : '—'; }
+
+// ── TABS ───────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(x => x.style.display = 'none');
+  b.classList.add('active');
+  const p = document.getElementById(b.dataset.tab);
+  if(p){ p.style.display = 'block'; if(b.dataset.tab === 'tab-dados') renderTable(); }
+}));
+
+// ── RENDER ALL ─────────────────────────────────
+function renderAll(){ renderKPIs(); renderMensal(); renderRanking(); renderTicket(); renderStatus(); renderEmpresa(); }
+
+function ANO_REF(){ return new Date().getFullYear(); }
+
+// ── KPIs ───────────────────────────────────────
+function renderKPIs(){
+  const ano = ANO_REF(), mes = new Date().getMonth();
+  const entreguesAno = allData.filter(r => r.data?.getFullYear()===ano && r.status==='ENTREGUE');
+  const fatAno = entreguesAno.reduce((s,r) => s+r.valor, 0);
+  const fatMes = entreguesAno.filter(r => r.data.getMonth()===mes).reduce((s,r) => s+r.valor, 0);
+  const mesesComFat = new Set(entreguesAno.map(r => r.data.getMonth())).size;
+  const fatMedio = mesesComFat>0 ? fatAno/mesesComFat : 0;
+  const clientesAtivos = new Set(entreguesAno.map(r => r.cliente)).size;
+  const atrasados = allData.filter(r => r.data?.getFullYear()===ano && r.status==='ATRASADO').length;
+  const emAberto = allData.filter(r => r.data?.getFullYear()===ano && ['NO PRAZO','ATRASADO','ATENÇÃO'].includes(r.status)).reduce((s,r) => s+r.valor, 0);
+
+  document.getElementById('kpi-grid').innerHTML = [
+    kpi('Faturamento Acumulado '+ano, fmtBRL(fatAno), 'Pedidos entregues', 'var(--ok)'),
+    kpi('Faturado em '+MESES[mes], fmtBRL(fatMes), 'Mês atual', 'var(--accent)'),
+    kpi('Faturamento Médio Mensal', fmtBRL(fatMedio), `${mesesComFat} mês${mesesComFat!==1?'es':''} com entregas`, 'var(--ok)'),
+    kpi('Clientes Ativos '+ano, clientesAtivos, 'Com ao menos 1 entrega', 'var(--ok)'),
+    kpi('Pedidos Atrasados', atrasados, 'Ano '+ano, 'var(--danger)'),
+    kpi('Valor em Aberto', fmtBRL(emAberto), 'A entregar — '+ano, 'var(--warn)'),
+  ].join('');
+}
+function kpi(lbl,val,sub,cor){ return `<div class="kpi-card"><div class="kpi-label">${lbl}</div><div class="kpi-value" style="color:${cor}">${typeof val==='number'?val.toLocaleString('pt-BR'):val}</div><div class="kpi-sub">${sub}</div></div>`; }
+
+// ── MENSAL ─────────────────────────────────────
+function renderMensal(){
+  const ano = ANO_REF();
+  const anos = [ano-1, ano];
+  const ds = anos.map((a,i) => {
+    const d = Array(12).fill(0);
+    allData.filter(r => r.data?.getFullYear()===a && r.status==='ENTREGUE').forEach(r => d[r.data.getMonth()]+=r.valor);
+    return { label:String(a), data:d, backgroundColor:i===0?'rgba(74,120,163,0.5)':'rgba(255,107,53,0.8)', borderColor:i===0?'#4A78A3':'#FF6B35', borderWidth:1, borderRadius:4 };
+  });
+  dChart('ch-mensal');
+  charts['ch-mensal'] = new Chart(document.getElementById('ch-mensal'),{
+    type:'bar', data:{labels:MESES, datasets:ds},
+    options:{ responsive:true, plugins:{legend:{labels:{color:'#8CA0B3'}}},
+      scales:{ x:{ticks:{color:'#8CA0B3'},grid:{color:'#24384F'}}, y:{ticks:{color:'#8CA0B3',callback:v=>'R$'+Math.round(v/1000)+'k'},grid:{color:'#24384F'}} }
+    }
+  });
+}
+
+// ── RANKING ────────────────────────────────────
+function renderRanking(){
+  const ano = ANO_REF(), por = {};
+  allData.filter(r => r.data?.getFullYear()===ano && r.status==='ENTREGUE').forEach(r => por[r.cliente]=(por[r.cliente]||0)+r.valor);
+  const rows = Object.entries(por).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  const max = rows[0]?.[1]||1, total = rows.reduce((s,[,v])=>s+v,0);
+  document.getElementById('ranking').innerHTML = rows.map(([c,v]) =>
+    `<div class="rank-row"><div class="rank-label" title="${c}">${c}</div><div class="rank-bar-track"><div class="rank-bar-fill" style="width:${v/max*100}%"></div></div><div class="rank-value">${fmtBRL(v)} · ${(v/total*100).toFixed(1)}%</div></div>`
+  ).join('');
+}
+
+// ── TICKET ─────────────────────────────────────
+function renderTicket(){
+  const ano = ANO_REF(), por = {};
+  allData.filter(r => r.data?.getFullYear()===ano && r.status==='ENTREGUE' && r.qtd>0).forEach(r => {
+    if(!por[r.cliente]) por[r.cliente]={fat:0,qtd:0};
+    por[r.cliente].fat+=r.valor; por[r.cliente].qtd+=r.qtd;
+  });
+  const rows = Object.entries(por).map(([c,v])=>[c,v.fat/v.qtd]).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  dChart('ch-ticket');
+  charts['ch-ticket'] = new Chart(document.getElementById('ch-ticket'),{
+    type:'bar', data:{labels:rows.map(r=>r[0]),datasets:[{label:'R$/unid',data:rows.map(r=>+r[1].toFixed(2)),backgroundColor:'rgba(79,209,197,0.7)',borderColor:'#4FD1C5',borderWidth:1,borderRadius:4}]},
+    options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
+      scales:{ x:{ticks:{color:'#8CA0B3',callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'#24384F'}}, y:{ticks:{color:'#8CA0B3',font:{size:11}},grid:{color:'#24384F'}} }
+    }
+  });
+}
+
+// ── STATUS ─────────────────────────────────────
+function renderStatus(){
+  const ano = ANO_REF(), por = {};
+  allData.filter(r => r.data?.getFullYear()===ano).forEach(r => por[r.status]=(por[r.status]||0)+1);
+  const labels = Object.keys(por);
+  const COR = {ENTREGUE:'#4FD1C5',ATRASADO:'#FF5C5C','NO PRAZO':'#90EE90','ATENÇÃO':'#F2C94C',CANCELADO:'#8CA0B3','DIGITAR PEDIDO':'#4A78A3'};
+  dChart('ch-status');
+  charts['ch-status'] = new Chart(document.getElementById('ch-status'),{
+    type:'doughnut', data:{labels, datasets:[{data:labels.map(l=>por[l]),backgroundColor:labels.map(l=>COR[l]||'#4A78A3'),borderWidth:0}]},
+    options:{ responsive:true, plugins:{legend:{position:'right',labels:{color:'#8CA0B3',padding:12}}} }
+  });
+}
+
+// ── EMPRESA ────────────────────────────────────
+function renderEmpresa(){
+  const ano = ANO_REF(), por = {};
+  allData.filter(r => r.data?.getFullYear()===ano && r.status==='ENTREGUE').forEach(r => por[r.empresa]=(por[r.empresa]||0)+r.valor);
+  const labels = Object.keys(por);
+  dChart('ch-empresa');
+  charts['ch-empresa'] = new Chart(document.getElementById('ch-empresa'),{
+    type:'pie', data:{labels, datasets:[{data:labels.map(l=>por[l]),backgroundColor:['#FF6B35','#4FD1C5','#F2C94C'],borderWidth:0}]},
+    options:{ responsive:true, plugins:{legend:{position:'right',labels:{color:'#8CA0B3',padding:12}}} }
+  });
+}
+
+function dChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+// ── TABELA ─────────────────────────────────────
+function getRows(){
+  const search = document.getElementById('bd-search').value.toLowerCase();
+  const status = document.getElementById('bd-status').value;
+  const ano = document.getElementById('bd-ano').value;
+  return allData.filter(r =>
+    (!search || r.cliente.toLowerCase().includes(search) || String(r.num_pedido).toLowerCase().includes(search)) &&
+    (!status || r.status===status) &&
+    (!ano || r.data?.getFullYear()===parseInt(ano))
+  ).sort((a,b) => {
+    let va=a[sortF], vb=b[sortF];
+    if(va instanceof Date) va=va.getTime(); if(vb instanceof Date) vb=vb.getTime();
+    if(typeof va==='number') return sortD==='asc'?va-vb:vb-va;
+    return sortD==='asc'?String(va||'').localeCompare(String(vb||'')):String(vb||'').localeCompare(String(va||''));
+  });
+}
+function renderTable(){
+  const rows = getRows();
+  const badge = s => {
+    const m = {ENTREGUE:'e',ATRASADO:'a','NO PRAZO':'p','ATENÇÃO':'t',CANCELADO:'c'};
+    return `<span class="badge b-${m[s]||'o'}">${s||'—'}</span>`;
+  };
+  document.getElementById('bd-tbody').innerHTML = rows.slice(0,500).map(r =>
+    `<tr><td>${r.cliente}</td><td>${r.num_pedido||'—'}</td><td>${fmtDate(r.data)}</td><td>${badge(r.status)}</td><td>${fmtBRL(r.valor)}</td><td>${r.qtd||'—'}</td><td>${r.nf||'—'}</td><td>${r.empresa}</td></tr>`
+  ).join('');
+  document.getElementById('table-count').textContent = `${rows.length.toLocaleString('pt-BR')} registros${rows.length>500?' (exibindo primeiros 500)':''}`;
+}
+function srt(f){ if(sortF===f) sortD=sortD==='asc'?'desc':'asc'; else{sortF=f;sortD='asc';} renderTable(); }
+document.getElementById('bd-search').addEventListener('input', renderTable);
+document.getElementById('bd-status').addEventListener('change', renderTable);
+document.getElementById('bd-ano').addEventListener('change', renderTable);
+
+function exportCSV(){
+  const rows = getRows();
+  const h = ['Cliente','Nº Pedido','Data Pedido','Status','Valor','Qtd Entregue','NF','Empresa'];
+  const lines = [h.join(';'), ...rows.map(r => [r.cliente,r.num_pedido,fmtDate(r.data),r.status,r.valor,r.qtd,r.nf,r.empresa].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';'))];
+  const blob = new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`beaz_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+}
+</script>
+</body>
+</html>
